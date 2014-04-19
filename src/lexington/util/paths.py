@@ -1,4 +1,3 @@
-from urllib import parse
 from werkzeug.wrappers import Request
 
 from lexington.util.di import depends_on
@@ -7,22 +6,21 @@ from lexington.util.di import depends_on
 def get_request(environ):
     return Request(environ)
 
-# TODO: clean up all of these...
-@depends_on(['environ'])
-def get_method(environ):
-    return environ['REQUEST_METHOD']
+@depends_on(['request'])
+def get_method(request):
+    return request.method
 
-@depends_on(['environ'])
-def get_path(environ):
-    return environ['PATH_INFO']
+@depends_on(['request'])
+def get_path(request):
+    return request.path
 
-@depends_on(['environ'])
-def get_query_string(environ):
-    return environ['QUERY_STRING']
+@depends_on(['request'])
+def get_query_string(request):
+    return request.query_string
 
-@depends_on(['query_string'])
-def get_query(query_string):
-    return parse.parse_qs(query_string)
+@depends_on(['request'])
+def get_query(request):
+    return request.args
 
 def register_all(dependencies):
     dependant_functions = {
