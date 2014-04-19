@@ -1,0 +1,2 @@
+class LexingtonException(Exception):
+    pass
