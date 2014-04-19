@@ -29,6 +29,8 @@ Send me a pull request.
 
 # TODO
 
+- Add documentation
+- Test the application class
 - Clean up path module
 - Add exception handling and allow registering custom exception handlers
 - Improve distribution system (add a setup.py?)
