@@ -56,6 +56,11 @@ def show_name(request, jinja_respond):
 def set_name(jinja_respond):
     return jinja_respond('set-name.html', {})
 
+@view('path-parts', ['respond', 'matched_segments'])
+def path_parts(respond, matched_segments):
+    text = str(matched_segments)
+    return respond(text, mimetype='text/plain')
+
 def create_app():
     builder = lexington.app()
 
@@ -83,6 +88,9 @@ def create_app():
     builder.add_view(show_name)
     builder.add_route('set-name', 'GET', '/hello')
     builder.add_view(set_name)
+
+    builder.add_route('path-parts', 'GET', '/user/{user_id}/post/{post_id:\d+}/')
+    builder.add_view(path_parts)
 
     return builder.create_app()
 
