@@ -69,6 +69,16 @@ class ApplicationFactory:
             self._views.create,
             ['route_names', 'provided_dependencies'],
         )
+        self._dependencies.register_factory(
+            'route_match',
+            lambda routing, path, method: routing.path_to_route(path, method),
+            ['routing', 'path', 'method']
+        )
+        self._dependencies.register_factory(
+            'matched_route',
+            lambda route_match: route_match[0],
+            ['route_match'],
+        )
         self._dependencies.check_dependencies()
         return Application(self._dependencies)
 
@@ -85,13 +95,9 @@ class Application:
             'environ': environ,
         })
 
-        routing = injector.get_dependency('routing')
         view_map = injector.get_dependency('view_map')
 
-        method = injector.get_dependency('method')
-        path = injector.get_dependency('path')
-
-        route_name, segment_matches = routing.path_to_route(path, method)
+        route_name = injector.get_dependency('matched_route')
         if route_name is None:
             return self._404('Route not found')
 
