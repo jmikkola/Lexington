@@ -96,6 +96,18 @@ class ApplicationFactory:
             ['view_map', 'matched_route'],
         )
 
+        def _response_fn(current_view):
+            def response_fn(injector):
+                result = injector.inject(current_view.fn, current_view.dependencies)
+                if isinstance(result, Response):
+                    return result
+                else:
+                    # Assume that the reuslt is text
+                    return Response(result, mimetype='text/plain')
+            return response_fn
+
+        self._dependencies.register_factory('_response_fn', _response_fn, ['current_view'])
+
         self._dependencies.check_dependencies()
         return Application(self._dependencies)
 
@@ -113,12 +125,7 @@ class Application:
         })
 
         try:
-            view = injector.get_dependency('current_view')
-            result = injector.inject(view.fn, view.dependencies)
-            if isinstance(result, Response):
-                return result
-            else: # Assume that the result is text
-                return Response(result, mimetype='text/plain')
+            return injector.get_dependency('_response_fn')(injector)
         except exceptions.NoRouteMatchedError:
             return self._404('Route not found')
         except exceptions.NoViewForRouteError:
