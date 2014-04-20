@@ -7,6 +7,8 @@ from lexington.util import route
 from lexington.util import view_map
 from lexington.util import paths
 
+from lexington import exceptions
+
 def default_dependencies(settings):
     dependencies = di.Dependencies()
     dependencies.register_value('settings', settings)
@@ -79,6 +81,21 @@ class ApplicationFactory:
             lambda route_match: route_match[0],
             ['route_match'],
         )
+
+        def current_view(view_map, matched_route):
+            if matched_route is None:
+                raise exceptions.NoRouteMatchedError()
+            view = view_map.get_view(matched_route)
+            if view is None:
+                raise exceptions.NoViewForRouteError()
+            return view
+
+        self._dependencies.register_factory(
+            'current_view',
+            current_view,
+            ['view_map', 'matched_route'],
+        )
+
         self._dependencies.check_dependencies()
         return Application(self._dependencies)
 
@@ -95,21 +112,17 @@ class Application:
             'environ': environ,
         })
 
-        view_map = injector.get_dependency('view_map')
-
-        route_name = injector.get_dependency('matched_route')
-        if route_name is None:
+        try:
+            view = injector.get_dependency('current_view')
+            result = injector.inject(view.fn, view.dependencies)
+            if isinstance(result, Response):
+                return result
+            else: # Assume that the result is text
+                return Response(result, mimetype='text/plain')
+        except exceptions.NoRouteMatchedError:
             return self._404('Route not found')
-
-        view = view_map.get_view(route_name)
-        if view is None:
-            return self._404('No view found for route ' + route_name)
-
-        result = injector.inject(view.fn, view.dependencies)
-        if isinstance(result, Response):
-            return result
-        else: # Assume that the result is text
-            return Response(result, mimetype='text/plain')
+        except exceptions.NoViewForRouteError:
+            return self._404('No view found for route')
 
     def _404(self, message):
         return Response(message, status=404)
