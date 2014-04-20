@@ -51,19 +51,30 @@ class ApplicationFactory:
         self._dependencies.register_factory(name, factory_fn, dependencies)
 
     def create_app(self):
-        self._dependencies.check_dependencies()
-        routing = self._routes.get_routing()
-        view_map = self._views.create(
-            routing.get_names(),
-            self._dependencies.provided_dependencies()
+        self._dependencies.register_factory(
+            'routing',
+            self._routes.get_routing,
         )
-        return Application(self._dependencies, view_map, routing)
+        self._dependencies.register_factory(
+            'route_names',
+            lambda routing: routing.get_names(),
+            ['routing'],
+        )
+        self._dependencies.register_factory(
+            'provided_dependencies',
+            self._dependencies.provided_dependencies,
+        )
+        self._dependencies.register_factory(
+            'view_map',
+            self._views.create,
+            ['route_names', 'provided_dependencies'],
+        )
+        self._dependencies.check_dependencies()
+        return Application(self._dependencies)
 
 class Application:
-    def __init__(self, dependencies, view_map, routing):
+    def __init__(self, dependencies):
         self._dependencies = dependencies
-        self._view_map = view_map
-        self._routing = routing
 
     def __call__(self, environ, start_response):
         response = self._get_response(environ)
@@ -74,14 +85,17 @@ class Application:
             'environ': environ,
         })
 
+        routing = injector.get_dependency('routing')
+        view_map = injector.get_dependency('view_map')
+
         method = injector.get_dependency('method')
         path = injector.get_dependency('path')
 
-        route_name, segment_matches = self._routing.path_to_route(path, method)
+        route_name, segment_matches = routing.path_to_route(path, method)
         if route_name is None:
             return self._404('Route not found')
 
-        view = self._view_map.get_view(route_name)
+        view = view_map.get_view(route_name)
         if view is None:
             return self._404('No view found for route ' + route_name)
 
