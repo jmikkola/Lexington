@@ -81,6 +81,11 @@ class ApplicationFactory:
             lambda route_match: route_match[0],
             ['route_match'],
         )
+        self._dependencies.register_factory(
+            'matched_segments',
+            lambda route_match: route_match[1],
+            ['route_match'],
+        )
 
         def current_view(view_map, matched_route):
             if matched_route is None:
