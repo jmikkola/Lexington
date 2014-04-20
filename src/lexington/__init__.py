@@ -87,23 +87,26 @@ class ApplicationFactory:
             ['route_match'],
         )
 
-        def current_view(view_map, matched_route):
-            if matched_route is None:
-                raise exceptions.NoRouteMatchedError()
-            view = view_map.get_view(matched_route)
-            if view is None:
-                raise exceptions.NoViewForRouteError()
-            return view
+        def current_view_fn(view_map, matched_route):
+            def current_view():
+                if matched_route is None:
+                    raise exceptions.NoRouteMatchedError()
+                view = view_map.get_view(matched_route)
+                if view is None:
+                    raise exceptions.NoViewForRouteError()
+                return view
+            return current_view
 
         self._dependencies.register_factory(
-            'current_view',
-            current_view,
+            'current_view_fn',
+            current_view_fn,
             ['view_map', 'matched_route'],
         )
 
-        def _response_fn(current_view):
+        def _response_fn(current_view_fn):
             def response_fn(injector):
-                result = injector.inject(current_view.fn, current_view.dependencies)
+                view = current_view_fn()
+                result = injector.inject(view.fn, view.dependencies)
                 if isinstance(result, Response):
                     return result
                 else:
@@ -111,7 +114,7 @@ class ApplicationFactory:
                     return Response(result, mimetype='text/plain')
             return response_fn
 
-        self._dependencies.register_factory('_response_fn', _response_fn, ['current_view'])
+        self._dependencies.register_factory('_response_fn', _response_fn, ['current_view_fn'])
 
         def _404_response(message):
             return Response(message, status=404)
