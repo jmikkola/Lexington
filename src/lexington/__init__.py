@@ -108,6 +108,25 @@ class ApplicationFactory:
 
         self._dependencies.register_factory('_response_fn', _response_fn, ['current_view'])
 
+        def _404_response(message):
+            return Response(message, status=404)
+
+        def _responder(response_fn, path, method, matched_route):
+            def responder(injector):
+                try:
+                    return response_fn(injector)
+                except exceptions.NoRouteMatchedError:
+                    return _404_response('Route not found for {} on {}'.format(method, path))
+                except exceptions.NoViewForRouteError:
+                    return _404_response('No view found for route {}'.format(matched_route))
+            return responder
+
+        self._dependencies.register_factory(
+            '_responder',
+            _responder,
+            ['_response_fn', 'path', 'method', 'matched_route'],
+        )
+
         self._dependencies.check_dependencies()
         return Application(self._dependencies)
 
@@ -123,13 +142,4 @@ class Application:
         injector = self._dependencies.build_injector(late_bound_values={
             'environ': environ,
         })
-
-        try:
-            return injector.get_dependency('_response_fn')(injector)
-        except exceptions.NoRouteMatchedError:
-            return self._404('Route not found')
-        except exceptions.NoViewForRouteError:
-            return self._404('No view found for route')
-
-    def _404(self, message):
-        return Response(message, status=404)
+        return injector.get_dependency('_responder')(injector)
